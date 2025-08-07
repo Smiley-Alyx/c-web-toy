@@ -42,6 +42,7 @@ void start_server(int port) {
 
         memset(buffer, 0, BUFFER_SIZE);
         read(client_fd, buffer, BUFFER_SIZE - 1);
+        //printf("----- RAW REQUEST -----\n%s\n------------------------\n", buffer); // log
 
         HttpRequest req;
         HttpResponse res;

@@ -14,15 +14,18 @@ static struct {
 static int route_count = 0;
 
 void http_parse_request(HttpRequest* req, const char* raw) {
-    // Parse request line: METHOD PATH
+    // Reset counts
+    req->header_count = 0;
+    req->query_count = 0;
+
+    // Parse METHOD and PATH
     sscanf(raw, "%7s %255s", req->method, req->path);
 
-    // Parse query string from path
+    // Parse query string
     char* question = strchr(req->path, '?');
     if (question) {
-        *question = '\0'; // Split at '?'
+        *question = '\0';
         char* query_str = question + 1;
-
         char* token = strtok(query_str, "&");
         while (token && req->query_count < MAX_QUERY_PARAMS) {
             char* eq = strchr(token, '=');
@@ -36,9 +39,11 @@ void http_parse_request(HttpRequest* req, const char* raw) {
         }
     }
 
-    // Parse headers
-    req->header_count = 0;
-    const char* header_start = strstr(raw, "\r\n") + 2;
+    // Parse headers safely
+    const char* header_start = strstr(raw, "\r\n");
+    if (!header_start) return;
+    header_start += 2;
+
     while (header_start && *header_start != '\r' && req->header_count < MAX_HEADERS) {
         const char* line_end = strstr(header_start, "\r\n");
         if (!line_end) break;
@@ -54,8 +59,7 @@ void http_parse_request(HttpRequest* req, const char* raw) {
             *colon = '\0';
             char* key = line;
             char* value = colon + 1;
-            while (*value == ' ') value++; // trim space
-
+            while (*value == ' ') value++;
             strncpy(req->headers[req->header_count].key, key, 63);
             strncpy(req->headers[req->header_count].value, value, 255);
             req->header_count++;
@@ -64,6 +68,7 @@ void http_parse_request(HttpRequest* req, const char* raw) {
         header_start = line_end + 2;
     }
 }
+
 
 void http_init_response(HttpResponse* res, int client_fd) {
     res->client_fd = client_fd;
