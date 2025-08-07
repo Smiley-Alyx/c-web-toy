@@ -1,0 +1,12 @@
+*.o
+*.out
+*.exe
+*.log
+*.a
+*.so
+
+.vscode/
+*.swp
+*.DS_Store
+
+build/
