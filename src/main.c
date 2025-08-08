@@ -38,13 +38,27 @@ void route_template(HttpRequest* req, HttpResponse* res) {
     }
 }
 
+void route_template_file(HttpRequest* req, HttpResponse* res) {
+    (void)req;
+    TemplateVar vars[] = { {"name", "Alya"} };
+
+    char* rendered = render_template_file("example.html", vars, 1);
+    if (rendered) {
+        http_send_html(res, rendered);
+        free(rendered);
+    } else {
+        http_send_text(res, "Template file rendering failed.");
+    }
+}
+
 int main() {
     http_add_route("GET", "/", route_root);
     http_add_route("GET", "/hello", route_hello);
     http_add_route("GET", "/echo", route_echo);
     http_add_route("GET", "/template", route_template);
+    http_add_route("GET", "/template-file", route_template_file);
 
-    printf("Запускаем сервер на http://localhost:8080\n");
+    printf("Starting server on http://localhost:8080\n");
     static_mount("/static/", "./public");
     start_server(8080);
 
