@@ -138,3 +138,14 @@ const char* http_get_query(HttpRequest* req, const char* key) {
     }
     return NULL;
 }
+
+void http_send_html(HttpResponse* res, const char* html) {
+    char response[1024];
+    snprintf(response, sizeof(response),
+             "HTTP/1.1 200 OK\r\n"
+             "Content-Type: text/html; charset=utf-8\r\n"
+             "Content-Length: %lu\r\n"
+             "Connection: close\r\n\r\n%s",
+             (unsigned long)strlen(html), html);
+    write(res->client_fd, response, strlen(response));
+}

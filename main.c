@@ -29,7 +29,7 @@ void route_template(HttpRequest* req, HttpResponse* res) {
 
     char* rendered = render_template(html, vars, 1);
     if (rendered) {
-        http_send_text(res, rendered);
+        http_send_html(res, rendered);
         free(rendered);
     } else {
         http_send_text(res, "Template rendering failed.");
