@@ -1,6 +1,7 @@
 #include "server.h"
 #include "http.h"
 #include "template.h"
+#include "static.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -10,6 +11,7 @@ void route_root(HttpRequest* req, HttpResponse* res) {
 }
 
 void route_hello(HttpRequest* req, HttpResponse* res) {
+    (void)req;
     http_send_text(res, "Hello, User!");
 }
 
@@ -43,6 +45,7 @@ int main() {
     http_add_route("GET", "/template", route_template);
 
     printf("Запускаем сервер на http://localhost:8080\n");
+    static_mount("/static/", "./public");
     start_server(8080);
 
     return 0;
