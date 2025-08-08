@@ -4,6 +4,7 @@
 *.log
 *.a
 *.so
+server
 
 .vscode/
 *.swp

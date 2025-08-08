@@ -1,10 +1,24 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
-OBJS = main.o server.o http.o template.o static.o mime.o
+CFLAGS = -Wall -Wextra -std=c11 -Iinclude
+SRC_DIR = src
+OBJ_DIR = build
 
-all: server
-server: $(OBJS)
-	$(CC) -o server $(OBJS)
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/http.c \
+       $(SRC_DIR)/static.c $(SRC_DIR)/mime.c $(SRC_DIR)/template.c
+OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+
+BIN = server
+
+all: $(BIN)
+
+$(BIN): $(OBJS)
+	$(CC) -o $@ $(OBJS)
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o server
+	rm -rf $(OBJ_DIR) $(BIN)
+
+.PHONY: all clean
