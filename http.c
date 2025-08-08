@@ -149,3 +149,14 @@ void http_send_html(HttpResponse* res, const char* html) {
              (unsigned long)strlen(html), html);
     write(res->client_fd, response, strlen(response));
 }
+void http_send_bytes(HttpResponse* res, const char* content_type, const unsigned char* data, size_t len) {
+    char header[256];
+    int n = snprintf(header, sizeof(header),
+                     "HTTP/1.1 200 OK\r\n"
+                     "Content-Type: %s\r\n"
+                     "Content-Length: %lu\r\n"
+                     "Connection: close\r\n\r\n",
+                     content_type, (unsigned long)len);
+    write(res->client_fd, header, (size_t)n);
+    if (len > 0) write(res->client_fd, data, len);
+}

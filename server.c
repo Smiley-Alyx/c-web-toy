@@ -1,5 +1,6 @@
 #include "server.h"
 #include "http.h"
+#include "static.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,6 +49,12 @@ void start_server(int port) {
         HttpResponse res;
         http_parse_request(&req, buffer);
         http_init_response(&res, client_fd);
+
+        // Try static first
+        if (static_try_serve(&req, &res)) {
+            close(client_fd);
+            continue;
+        }
 
         http_handle_route(&req, &res);
 
