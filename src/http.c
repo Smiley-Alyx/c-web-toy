@@ -3,6 +3,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <ctype.h>
 
@@ -150,43 +151,104 @@ const char* http_get_form(HttpRequest* req, const char* key) {
 // Response helpers
 void http_init_response(HttpResponse* res, int client_fd) {
     res->client_fd = client_fd;
+    res->extra_count = 0;
+}
+
+// http_add_header
+void http_add_header(HttpResponse* res, const char* key, const char* value) {
+    if (res->extra_count >= MAX_EXTRA_HEADERS) return;
+    snprintf(res->extra_headers[res->extra_count], EXTRA_HEADER_LEN, "%s: %s", key, value);
+    res->extra_count++;
+}
+
+// http_set_cookie
+// attrs example: "Path=/; HttpOnly; SameSite=Lax; Max-Age=86400"
+void http_set_cookie(HttpResponse* res, const char* name, const char* value, const char* attrs) {
+    if (res->extra_count >= MAX_EXTRA_HEADERS) return;
+    if (!attrs) attrs = "";
+    // We store full header line after "Set-Cookie:" to reuse http_add_header format
+    snprintf(res->extra_headers[res->extra_count], EXTRA_HEADER_LEN,
+             "Set-Cookie: %s=%s%s%s", name, value,
+             (attrs && attrs[0]) ? "; " : "", (attrs && attrs[0]) ? attrs : "");
+    res->extra_count++;
+}
+
+// modify send helpers to print extra headers
+static void write_extra_headers(HttpResponse* res, char* header_buf, size_t cap, int* n) {
+    for (int i = 0; i < res->extra_count; i++) {
+        *n += snprintf(header_buf + *n, cap - (size_t)*n, "%s\r\n", res->extra_headers[i]);
+        if (*n >= (int)cap) break;
+    }
 }
 
 void http_send_text(HttpResponse* res, const char* body) {
-    char header[256];
+    char header[512];
     int n = snprintf(header, sizeof(header),
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/plain; charset=utf-8\r\n"
         "Content-Length: %lu\r\n"
-        "Connection: close\r\n\r\n",
+        "Connection: close\r\n",
         (unsigned long)strlen(body));
+    write_extra_headers(res, header, sizeof(header), &n);
+    n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
     write(res->client_fd, header, (size_t)n);
     write(res->client_fd, body, strlen(body));
 }
 
 void http_send_html(HttpResponse* res, const char* html) {
-    char header[256];
+    char header[512];
     int n = snprintf(header, sizeof(header),
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=utf-8\r\n"
         "Content-Length: %lu\r\n"
-        "Connection: close\r\n\r\n",
+        "Connection: close\r\n",
         (unsigned long)strlen(html));
+    write_extra_headers(res, header, sizeof(header), &n);
+    n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
     write(res->client_fd, header, (size_t)n);
     write(res->client_fd, html, strlen(html));
 }
 
 void http_send_bytes(HttpResponse* res, const char* content_type,
                      const unsigned char* data, size_t len) {
-    char header[256];
+    char header[512];
     int n = snprintf(header, sizeof(header),
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: %s\r\n"
         "Content-Length: %lu\r\n"
-        "Connection: close\r\n\r\n",
+        "Connection: close\r\n",
         content_type, (unsigned long)len);
+    write_extra_headers(res, header, sizeof(header), &n);
+    n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
     write(res->client_fd, header, (size_t)n);
     if (len) write(res->client_fd, data, len);
+}
+
+// http_get_cookie
+const char* http_get_cookie(HttpRequest* req, const char* name) {
+    static char value[256];
+    const char* ck = http_get_header(req, "Cookie");
+    if (!ck) return NULL;
+
+    // Look for "name=" token
+    size_t name_len = strlen(name);
+    const char* p = ck;
+    while (*p) {
+        while (*p == ' ' || *p == ';') p++;
+        if (strncmp(p, name, name_len) == 0 && p[name_len] == '=') {
+            p += name_len + 1;
+            size_t i = 0;
+            while (*p && *p != ';' && i + 1 < sizeof(value)) {
+                value[i++] = *p++;
+            }
+            value[i] = '\0';
+            return value;
+        }
+        // skip to next ; or end
+        while (*p && *p != ';') p++;
+        if (*p == ';') p++;
+    }
+    return NULL;
 }
 
 // Routing
