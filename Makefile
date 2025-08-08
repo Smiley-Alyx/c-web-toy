@@ -5,7 +5,7 @@ OBJ_DIR = build
 
 SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/http.c \
        $(SRC_DIR)/static.c $(SRC_DIR)/mime.c $(SRC_DIR)/template.c \
-       $(SRC_DIR)/session.c
+       $(SRC_DIR)/session.c $(SRC_DIR)/logger.c $(SRC_DIR)/config.c
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 BIN = server
