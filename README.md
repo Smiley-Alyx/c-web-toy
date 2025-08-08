@@ -35,9 +35,9 @@ make
 - [x] Роутинг `method + path`
 - [x] Статика (`/static/ -> ./public`)
 - [x] Шаблонизатор (строки)
-- [ ] Шаблонизатор из файлов (`render_template_file`)
-- [ ] POST/формы (`application/x-www-form-urlencoded`)
-- [ ] Куки/сессии (опционально)
+- [x] Шаблонизатор из файлов (`render_template_file`)
+- [x] POST/формы (`application/x-www-form-urlencoded`)
+- [x] Куки/сессии (опционально)
 - [ ] Демо-приложение
 
 ## Лицензия
