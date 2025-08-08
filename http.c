@@ -7,6 +7,7 @@
 #define MAX_ROUTES 32
 
 static struct {
+    char method[8];
     char path[256];
     RouteHandler handler;
 } routes[MAX_ROUTES];
@@ -14,14 +15,13 @@ static struct {
 static int route_count = 0;
 
 void http_parse_request(HttpRequest* req, const char* raw) {
-    // Reset counts
     req->header_count = 0;
     req->query_count = 0;
 
-    // Parse METHOD and PATH
+    // METHOD and PATH
     sscanf(raw, "%7s %255s", req->method, req->path);
 
-    // Parse query string
+    // query string
     char* question = strchr(req->path, '?');
     if (question) {
         *question = '\0';
@@ -39,7 +39,7 @@ void http_parse_request(HttpRequest* req, const char* raw) {
         }
     }
 
-    // Parse headers safely
+    // headers
     const char* header_start = strstr(raw, "\r\n");
     if (!header_start) return;
     header_start += 2;
@@ -64,11 +64,9 @@ void http_parse_request(HttpRequest* req, const char* raw) {
             strncpy(req->headers[req->header_count].value, value, 255);
             req->header_count++;
         }
-
         header_start = line_end + 2;
     }
 }
-
 
 void http_init_response(HttpResponse* res, int client_fd) {
     res->client_fd = client_fd;
@@ -81,25 +79,45 @@ void http_send_text(HttpResponse* res, const char* body) {
              "Content-Type: text/plain\r\n"
              "Content-Length: %lu\r\n"
              "Connection: close\r\n\r\n%s",
-             strlen(body), body);
+             (unsigned long)strlen(body), body);
     write(res->client_fd, response, strlen(response));
 }
 
-void http_add_route(const char* path, RouteHandler handler) {
+void http_add_route(const char* method, const char* path, RouteHandler handler) {
     if (route_count < MAX_ROUTES) {
-        strncpy(routes[route_count].path, path, sizeof(routes[route_count].path) - 1);
+        strncpy(routes[route_count].method, method, 7);
+        routes[route_count].method[7] = '\0';
+        strncpy(routes[route_count].path, path, 255);
+        routes[route_count].path[255] = '\0';
         routes[route_count].handler = handler;
         route_count++;
     }
 }
 
 void http_handle_route(HttpRequest* req, HttpResponse* res) {
+    // First try exact method+path
     for (int i = 0; i < route_count; i++) {
-        if (strcmp(routes[i].path, req->path) == 0) {
+        if (strcmp(routes[i].path, req->path) == 0 &&
+            strcmp(routes[i].method, req->method) == 0) {
             routes[i].handler(req, res);
             return;
         }
     }
+    // If path exists with another method → 405
+    for (int i = 0; i < route_count; i++) {
+        if (strcmp(routes[i].path, req->path) == 0) {
+            const char* msg = "405 Method Not Allowed";
+            char response[256];
+            snprintf(response, sizeof(response),
+                     "HTTP/1.1 405 Method Not Allowed\r\n"
+                     "Content-Length: %lu\r\n"
+                     "Connection: close\r\n\r\n%s",
+                     (unsigned long)strlen(msg), msg);
+            write(res->client_fd, response, strlen(response));
+            return;
+        }
+    }
+    // Default 404
     http_send_text(res, "404 Not Found");
 }
 
