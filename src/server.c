@@ -3,10 +3,12 @@
 #include "static.h"
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 16384
 
 void start_server(int port) {
     int server_fd, client_fd;
@@ -41,13 +43,66 @@ void start_server(int port) {
             continue;
         }
 
-        memset(buffer, 0, BUFFER_SIZE);
-        read(client_fd, buffer, BUFFER_SIZE - 1);
+        // Reset buffer and read request headers first
+        size_t total = 0;
+        ssize_t n;
+        int headers_end = -1;
+
+        // Read until we see the end of headers (\r\n\r\n) or buffer is full
+        while ((n = read(client_fd, buffer + total, BUFFER_SIZE - total - 1)) > 0) {
+            total += (size_t)n;
+            buffer[total] = '\0';
+            char* p = strstr(buffer, "\r\n\r\n");
+            if (p) {                       // headers end found
+                headers_end = (int)(p - buffer) + 4;
+                break;
+            }
+            if (total >= BUFFER_SIZE - 1)  // buffer full
+                break;
+        }
+
+        if (total == 0) {
+            close(client_fd);
+            continue;
+        }
+
+        // Determine Content-Length (case-insensitive match on header name)
+        size_t content_length = 0;
+        if (headers_end > 0) {
+            const char* line = buffer;
+            const char* headers_limit = buffer + headers_end;
+            while (line < headers_limit) {
+                const char* line_end = strstr(line, "\r\n");
+                if (!line_end) break;
+                size_t len = (size_t)(line_end - line);
+                if (len == 0) break; // empty line (shouldn't happen before headers_end)
+
+                if (strncasecmp(line, "Content-Length:", 15) == 0) {
+                    const char* v = line + 15;
+                    while (v < line_end && (*v == ' ' || *v == '\t')) v++;
+                    content_length = (size_t)strtoul(v, NULL, 10);
+                    break;
+                }
+                line = line_end + 2;
+            }
+
+            // Read the remaining body bytes if any
+            size_t already = (total > (size_t)headers_end) ? (total - (size_t)headers_end) : 0;
+            while (already < content_length && total < BUFFER_SIZE - 1) {
+                n = read(client_fd, buffer + total, BUFFER_SIZE - total - 1);
+                if (n <= 0) break;
+                total += (size_t)n;
+                already = total - (size_t)headers_end;
+            }
+            buffer[total] = '\0';
+        }
         //printf("----- RAW REQUEST -----\n%s\n------------------------\n", buffer); // log
 
         HttpRequest req;
         HttpResponse res;
-        http_parse_request(&req, buffer);
+
+        // Note: http_parse_request now accepts raw length
+        http_parse_request(&req, buffer, total);
         http_init_response(&res, client_fd);
 
         // Try static first
@@ -56,6 +111,7 @@ void start_server(int port) {
             continue;
         }
 
+        // Then route handlers
         http_handle_route(&req, &res);
 
         close(client_fd);
