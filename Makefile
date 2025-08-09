@@ -10,6 +10,7 @@ SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/server.c $(SRC_DIR)/http.c \
        $(SRC_DIR)/session.c $(SRC_DIR)/logger.c $(SRC_DIR)/config.c
 
 # TLS toggle: make TLS=1
+LDLIBS = -lpthread
 ifeq ($(TLS),1)
 CFLAGS += -DENABLE_TLS
 LDLIBS += -lssl -lcrypto

@@ -10,6 +10,13 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+
+typedef struct { int port; } HttpArgs;
+
+#ifdef ENABLE_TLS
+typedef struct { int port; const char* cert; const char* key; } HttpsArgs;
+#endif
 
 void route_root(HttpRequest* req, HttpResponse* res) {
     (void)req;
@@ -103,6 +110,19 @@ static void route_session(HttpRequest* req, HttpResponse* res) {
     http_send_html(res, html);
 }
 
+static void* http_thread(void* arg) {
+    HttpArgs* a = (HttpArgs*)arg;
+    start_server(a->port);
+    return NULL;
+}
+
+#ifdef ENABLE_TLS
+static void* https_thread(void* arg) {
+    HttpsArgs* a = (HttpsArgs*)arg;
+    start_server_tls(a->port, a->cert, a->key);
+    return NULL;
+}
+#endif
 
 int main() {
     log_init();
@@ -112,7 +132,16 @@ int main() {
     static_mount(url_prefix, static_dir);
     LOGI("Static: %s -> %s", url_prefix, static_dir);
 
-    int port = config_get_port(8080);
+    int http_port  = config_get_port(8080);
+    int https_port = 0;
+    #ifdef ENABLE_TLS
+        const char* https = getenv("HTTPS");          // "1" to enable
+        const char* cert  = getenv("CERT_FILE");
+        const char* key   = getenv("KEY_FILE");
+        if (https && strcmp(https, "1") == 0 && cert && key) {
+            https_port = config_get_https_port(8443);
+        }
+    #endif
     config_dump();
     
     http_add_route("GET", "/", route_root);
@@ -124,18 +153,36 @@ int main() {
     http_add_route("POST", "/form", route_form_post);
     http_add_route("GET", "/session", route_session);
 
+    pthread_t th_http;
+    HttpArgs  http_args = { .port = http_port };
+    if (pthread_create(&th_http, NULL, http_thread, &http_args) != 0) {
+        LOGE("Failed to start HTTP thread");
+        return 1;
+    }
+    LOGI("HTTP listening on http://localhost:%d", http_port);
+
     #ifdef ENABLE_TLS
-        const char* https = getenv("HTTPS");
-        const char* cert  = getenv("CERT_FILE");
-        const char* key   = getenv("KEY_FILE");
-        if (https && strcmp(https, "1") == 0 && cert && key) {
-            LOGI("Starting HTTPS with cert=%s key=%s", cert, key);
-            start_server_tls(port, cert, key);
-            return 0;
+        pthread_t th_https;
+        HttpsArgs https_args;
+        int have_https = (https_port > 0);
+        if (have_https) {
+            https_args.port = https_port;
+            https_args.cert = cert;
+            https_args.key  = key;
+            if (pthread_create(&th_https, NULL, https_thread, &https_args) != 0) {
+                LOGE("Failed to start HTTPS thread");
+                have_https = 0;
+            } else {
+                LOGI("HTTPS listening on https://localhost:%d", https_port);
+            }
         }
     #endif
-    LOGI("Starting HTTP only");
-    start_server(port);
 
+    // Join
+    pthread_join(th_http, NULL);
+    #ifdef ENABLE_TLS
+        if (https_port > 0) pthread_join(th_https, NULL);
+    #endif
+    
     return 0;
 }
