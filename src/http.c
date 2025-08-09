@@ -173,7 +173,7 @@ static ssize_t res_write(HttpResponse* res, const void* buf, size_t len) {
         return (n > 0) ? n : -1;
     }
 #endif
-    return res_write(res, buf, len);
+    return write(res->client_fd, buf, len);
 }
 
 // http_add_header
@@ -296,14 +296,18 @@ void http_handle_route(HttpRequest* req, HttpResponse* res) {
     // Path exists with another method → 405
     for (int i = 0; i < route_count; i++) {
         if (strcmp(routes[i].path, req->path) == 0) {
+            // Send 405 with proper headers via res_write
             const char* msg = "405 Method Not Allowed";
-            char buf[256];
-            int n = snprintf(buf, sizeof(buf),
-                "HTTP/1.1 405 Method Not Allowed\r\n"
-                "Content-Length: %lu\r\n"
-                "Connection: close\r\n\r\n%s",
-                (unsigned long)strlen(msg), msg);
-            res_write(res, buf, (size_t)n);
+            char header[256];
+            int n = snprintf(header, sizeof(header),
+                             "HTTP/1.1 405 Method Not Allowed\r\n"
+                             "Content-Length: %lu\r\n"
+                             "Connection: close\r\n",
+                             (unsigned long)strlen(msg));
+            write_extra_headers(res, header, sizeof(header), &n);
+            n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
+            res_write(res, header, (size_t)n);
+            res_write(res, msg, strlen(msg));
             return;
         }
     }

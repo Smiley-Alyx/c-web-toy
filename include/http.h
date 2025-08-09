@@ -46,6 +46,7 @@ void        http_parse_request(HttpRequest* req, const char* raw, size_t raw_len
 const char* http_get_header   (HttpRequest* req, const char* key);
 const char* http_get_query    (HttpRequest* req, const char* key);
 const char* http_get_form     (HttpRequest* req, const char* key);
+const char* http_get_cookie   (HttpRequest* req, const char* name);
 
 // Response API
 void http_init_response(HttpResponse* res, int client_fd);

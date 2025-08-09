@@ -1,4 +1,5 @@
 #include "session.h"
+#include "http.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
