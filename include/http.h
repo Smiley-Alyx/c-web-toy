@@ -6,13 +6,16 @@
 #define MAX_HEADERS 32
 #define MAX_QUERY_PARAMS 32
 #define MAX_BODY 8192
-
-// allow up to 10 extra headers (e.g., Set-Cookie)
 #define MAX_EXTRA_HEADERS 10
 #define EXTRA_HEADER_LEN  256
 
 typedef struct { char key[64];  char value[256]; } Header;
 typedef struct { char key[64];  char value[256]; } QueryParam;
+
+#ifdef ENABLE_TLS
+// forward decl to avoid including <openssl/ssl.h> here
+typedef struct ssl_st SSL;
+#endif
 
 typedef struct {
     char method[8];
@@ -28,10 +31,12 @@ typedef struct {
 } HttpRequest;
 
 typedef struct {
-    int client_fd;
+    int  client_fd;
     char extra_headers[MAX_EXTRA_HEADERS][EXTRA_HEADER_LEN];
     int  extra_count;
+#ifdef ENABLE_TLS
     SSL* ssl;
+#endif
 } HttpResponse;
 
 typedef void (*RouteHandler)(HttpRequest*, HttpResponse*);
@@ -41,17 +46,19 @@ void        http_parse_request(HttpRequest* req, const char* raw, size_t raw_len
 const char* http_get_header   (HttpRequest* req, const char* key);
 const char* http_get_query    (HttpRequest* req, const char* key);
 const char* http_get_form     (HttpRequest* req, const char* key);
-const char* http_get_cookie   (HttpRequest* req, const char* name);
 
 // Response API
 void http_init_response(HttpResponse* res, int client_fd);
-void http_response_set_ssl(HttpResponse* res, SSL* ssl);
 void http_add_header   (HttpResponse* res, const char* key, const char* value);
 void http_set_cookie   (HttpResponse* res, const char* name, const char* value, const char* attrs);
 void http_send_text    (HttpResponse* res, const char* body);
 void http_send_html    (HttpResponse* res, const char* html);
 void http_send_bytes   (HttpResponse* res, const char* content_type,
-const unsigned char* data, size_t len);
+                        const unsigned char* data, size_t len);
+
+#ifdef ENABLE_TLS
+void http_response_set_ssl(HttpResponse* res, SSL* ssl);
+#endif
 
 // Routing
 void http_add_route   (const char* method, const char* path, RouteHandler handler);

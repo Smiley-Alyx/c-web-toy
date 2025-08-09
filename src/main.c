@@ -5,7 +5,9 @@
 #include "session.h"
 #include "logger.h"
 #include "config.h"
+#ifdef ENABLE_TLS
 #include "tls.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -111,9 +113,6 @@ int main() {
     LOGI("Static: %s -> %s", url_prefix, static_dir);
 
     int port = config_get_port(8080);
-    const char* https = getenv("HTTPS");
-    const char* cert  = getenv("CERT_FILE");
-    const char* key   = getenv("KEY_FILE");
     config_dump();
     
     http_add_route("GET", "/", route_root);
@@ -125,14 +124,18 @@ int main() {
     http_add_route("POST", "/form", route_form_post);
     http_add_route("GET", "/session", route_session);
 
-    if (https && strcmp(https, "1") == 0 && cert && key) {
-        LOGI("Starting HTTPS with cert=%s key=%s", cert, key);
-        printf("Server HTTPS is running at http://localhost:8443\n");
-        start_server_tls(port, cert, key);
-    } else {
-        LOGI("Starting HTTP only");
-        printf("Server is running at http://localhost:8080\n");
-        start_server(port);
-    }
+    #ifdef ENABLE_TLS
+        const char* https = getenv("HTTPS");
+        const char* cert  = getenv("CERT_FILE");
+        const char* key   = getenv("KEY_FILE");
+        if (https && strcmp(https, "1") == 0 && cert && key) {
+            LOGI("Starting HTTPS with cert=%s key=%s", cert, key);
+            start_server_tls(port, cert, key);
+            return 0;
+        }
+    #endif
+    LOGI("Starting HTTP only");
+    start_server(port);
+
     return 0;
 }

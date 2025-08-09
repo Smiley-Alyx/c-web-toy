@@ -5,6 +5,8 @@
 *.a
 *.so
 server
+*.pem
+*.key
 
 .vscode/
 *.swp

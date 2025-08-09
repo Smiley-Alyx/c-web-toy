@@ -3,7 +3,9 @@
 #include "static.h"
 #include "logger.h"
 #include "config.h"
+#ifdef ENABLE_TLS
 #include "tls.h"
+#endif
 #include "logger.h"
 #include <stdio.h>
 #include <string.h>
@@ -104,6 +106,7 @@ void start_server(int port) {
     close(server_fd);
 }
 
+#ifdef ENABLE_TLS
 void start_server_tls(int port, const char* cert_file, const char* key_file) {
     log_init();
     LOGI("Starting TLS server...");
@@ -198,3 +201,4 @@ void start_server_tls(int port, const char* cert_file, const char* key_file) {
     close(server_fd);
     tls_free(&tls);
 }
+#endif

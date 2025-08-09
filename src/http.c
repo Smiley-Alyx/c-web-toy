@@ -6,7 +6,10 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <ctype.h>
+#ifdef ENABLE_TLS
 #include <openssl/ssl.h>
+#endif
+
 
 // Routing table
 #define MAX_ROUTES 32
@@ -153,20 +156,24 @@ const char* http_get_form(HttpRequest* req, const char* key) {
 void http_init_response(HttpResponse* res, int client_fd) {
     res->client_fd = client_fd;
     res->extra_count = 0;
+    #ifdef ENABLE_TLS
     res->ssl = NULL;
+    #endif
 }
 
-void http_response_set_ssl(HttpResponse* res, SSL* ssl) {
-    res->ssl = ssl;
-}
+
+#ifdef ENABLE_TLS
+void http_response_set_ssl(HttpResponse* res, SSL* ssl) { res->ssl = ssl; }
+#endif
 
 static ssize_t res_write(HttpResponse* res, const void* buf, size_t len) {
+#ifdef ENABLE_TLS
     if (res->ssl) {
         int n = SSL_write(res->ssl, buf, (int)len);
         return (n > 0) ? n : -1;
-    } else {
-        return res_write(res, buf, len);
     }
+#endif
+    return res_write(res, buf, len);
 }
 
 // http_add_header
