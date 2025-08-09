@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <openssl/ssl.h>
 
 // Routing table
 #define MAX_ROUTES 32
@@ -152,6 +153,20 @@ const char* http_get_form(HttpRequest* req, const char* key) {
 void http_init_response(HttpResponse* res, int client_fd) {
     res->client_fd = client_fd;
     res->extra_count = 0;
+    res->ssl = NULL;
+}
+
+void http_response_set_ssl(HttpResponse* res, SSL* ssl) {
+    res->ssl = ssl;
+}
+
+static ssize_t res_write(HttpResponse* res, const void* buf, size_t len) {
+    if (res->ssl) {
+        int n = SSL_write(res->ssl, buf, (int)len);
+        return (n > 0) ? n : -1;
+    } else {
+        return res_write(res, buf, len);
+    }
 }
 
 // http_add_header
@@ -191,8 +206,8 @@ void http_send_text(HttpResponse* res, const char* body) {
         (unsigned long)strlen(body));
     write_extra_headers(res, header, sizeof(header), &n);
     n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
-    write(res->client_fd, header, (size_t)n);
-    write(res->client_fd, body, strlen(body));
+    res_write(res, header, (size_t)n);
+    res_write(res, body, strlen(body));
 }
 
 void http_send_html(HttpResponse* res, const char* html) {
@@ -205,8 +220,8 @@ void http_send_html(HttpResponse* res, const char* html) {
         (unsigned long)strlen(html));
     write_extra_headers(res, header, sizeof(header), &n);
     n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
-    write(res->client_fd, header, (size_t)n);
-    write(res->client_fd, html, strlen(html));
+    res_write(res, header, (size_t)n);
+    res_write(res, html, strlen(html));
 }
 
 void http_send_bytes(HttpResponse* res, const char* content_type,
@@ -220,8 +235,8 @@ void http_send_bytes(HttpResponse* res, const char* content_type,
         content_type, (unsigned long)len);
     write_extra_headers(res, header, sizeof(header), &n);
     n += snprintf(header + n, sizeof(header) - (size_t)n, "\r\n");
-    write(res->client_fd, header, (size_t)n);
-    if (len) write(res->client_fd, data, len);
+    res_write(res, header, (size_t)n);
+    if (len) res_write(res, data, len);
 }
 
 // http_get_cookie
@@ -281,7 +296,7 @@ void http_handle_route(HttpRequest* req, HttpResponse* res) {
                 "Content-Length: %lu\r\n"
                 "Connection: close\r\n\r\n%s",
                 (unsigned long)strlen(msg), msg);
-            write(res->client_fd, buf, (size_t)n);
+            res_write(res, buf, (size_t)n);
             return;
         }
     }

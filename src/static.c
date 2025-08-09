@@ -38,7 +38,7 @@ int static_try_serve(HttpRequest* req, HttpResponse* res) {
         snprintf(buf, sizeof(buf),
             "HTTP/1.1 403 Forbidden\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n%s",
             (unsigned long)strlen(msg), msg);
-        write(res->client_fd, buf, strlen(buf));
+        http_send_text(res, "403 Forbidden");
         return 1;
     }
 
@@ -62,7 +62,7 @@ int static_try_serve(HttpRequest* req, HttpResponse* res) {
         snprintf(buf, sizeof(buf),
             "HTTP/1.1 404 Not Found\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n%s",
             (unsigned long)strlen(msg), msg);
-        write(res->client_fd, buf, strlen(buf));
+        http_send_text(res, "404 Not Found");
         return 1;
     }
 
@@ -74,7 +74,7 @@ int static_try_serve(HttpRequest* req, HttpResponse* res) {
         snprintf(buf, sizeof(buf),
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n%s",
             (unsigned long)strlen(msg), msg);
-        write(res->client_fd, buf, strlen(buf));
+        http_send_text(res, "500 Internal Server Error");
         return 1;
     }
 
@@ -88,7 +88,7 @@ int static_try_serve(HttpRequest* req, HttpResponse* res) {
         snprintf(buf, sizeof(buf),
             "HTTP/1.1 500 Internal Server Error\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n%s",
             (unsigned long)strlen(msg), msg);
-        write(res->client_fd, buf, strlen(buf));
+        http_send_text(res, "500 Internal Server Error");
         return 1;
     }
 

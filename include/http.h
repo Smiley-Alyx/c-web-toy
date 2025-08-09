@@ -31,6 +31,7 @@ typedef struct {
     int client_fd;
     char extra_headers[MAX_EXTRA_HEADERS][EXTRA_HEADER_LEN];
     int  extra_count;
+    SSL* ssl;
 } HttpResponse;
 
 typedef void (*RouteHandler)(HttpRequest*, HttpResponse*);
@@ -44,6 +45,7 @@ const char* http_get_cookie   (HttpRequest* req, const char* name);
 
 // Response API
 void http_init_response(HttpResponse* res, int client_fd);
+void http_response_set_ssl(HttpResponse* res, SSL* ssl);
 void http_add_header   (HttpResponse* res, const char* key, const char* value);
 void http_set_cookie   (HttpResponse* res, const char* name, const char* value, const char* attrs);
 void http_send_text    (HttpResponse* res, const char* body);
