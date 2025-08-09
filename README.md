@@ -1,46 +1,64 @@
 # c-web-toy
 
-Учебный **микро-веб-фреймворк на чистом C**. Цель — понять, как работает веб: сокеты, парсинг HTTP, роутинг, статика, простейший шаблонизатор.
+[🇷🇺 Russian version](README.ru.md) | [🇬🇧 English version](README.md)
 
-> Кодовые комментарии и сообщения — **на английском**. Документация — **на русском**.
+A **learning micro web framework in pure C**. The goal is to understand how the web works: sockets, HTTP parsing, routing, static files, a minimal template engine.
 
-## Структура
+> Code comments and messages — **in English**. Documentation — **in both Russian and English**.
+
+## Structure
 
 ```
-include/   — заголовочные файлы (public API)
-src/       — исходники
-public/    — статические файлы (HTML/CSS/JS)
-templates/ — шаблоны (для последующих этапов)
+include/   — header files (public API)
+src/       — source code
+public/    — static files (HTML/CSS/JS)
+templates/ — templates (for later stages)
 ```
 
-## Сборка и запуск
+## Build and run
 
 ```bash
 make
 ./server
 ```
 
-По умолчанию сервер слушает `http://localhost:8080`.
+By default, the server listens on `http://localhost:8080`.
 
-## Возможности текущего этапа
+## HTTPS support
 
-- Простая маршрутизация по методу + пути (`GET /hello`)
-- Отдача статики с корректным `Content-Type`: `mount /static/ -> ./public`
-- Простейший шаблонизатор `{{var}}` для HTML-строк (без загрузки из файлов)
-- Минимальный парсинг HTTP (метод, путь, заголовки, query-параметры)
+To run with HTTPS in parallel with HTTP:
 
-## Дорожная карта
+```bash
+# Generate self-signed certificate
+openssl req -x509 -nodes -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365
 
-- [x] Базовый сервер, парсинг запроса
-- [x] Роутинг `method + path`
-- [x] Статика (`/static/ -> ./public`)
-- [x] Шаблонизатор (строки)
-- [x] Шаблонизатор из файлов (`render_template_file`)
-- [x] POST/формы (`application/x-www-form-urlencoded`)
-- [x] Куки/сессии
-- [x] Поддержка HTTPS
-- [ ] Демо-приложение
+# Run with HTTP (8080) + HTTPS (8443)
+PORT=8080 HTTPS=1 HTTPS_PORT=8443 CERT_FILE=./cert.pem KEY_FILE=./key.pem ./server
+```
 
-## Лицензия
+## Features (current stage)
+
+- Simple routing by method + path (`GET /hello`)
+- Static file serving with proper `Content-Type`: `mount /static/ -> ./public`
+- Minimal `{{var}}` template engine for HTML strings (no file loading)
+- Minimal HTTP parsing (method, path, headers, query parameters)
+- File-based template rendering (`render_template_file`)
+- POST/forms (`application/x-www-form-urlencoded`)
+- Cookies/sessions
+- Parallel HTTP + HTTPS listeners
+
+## Roadmap
+
+- [x] Basic server, request parsing
+- [x] Routing `method + path`
+- [x] Static files (`/static/ -> ./public`)
+- [x] Template engine (strings)
+- [x] Template engine from files (`render_template_file`)
+- [x] POST/forms (`application/x-www-form-urlencoded`)
+- [x] Cookies/sessions
+- [x] HTTPS support
+- [ ] Demo application
+
+## License
 
 MIT
